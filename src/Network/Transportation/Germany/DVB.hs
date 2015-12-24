@@ -10,10 +10,12 @@ module Network.Transportation.Germany.DVB
 ( Location(..)
 , City(..)
 , TimeType(..)
+, defaultCity
 ) where
 
-newtype Location = Location String
-newtype City = City String
+newtype Location = Location String deriving (Show)
+newtype City = City String deriving (Show)
+
 data TimeType = DepartureTime | ArrivalTime
 
 instance Show TimeType where

@@ -6,16 +6,29 @@
 -- Stability: experimental
 -- Portability: ghc
 
+{-# LANGUAGE OverloadedStrings #-}
+
 module Network.Transportation.Germany.DVB.Route
 ( RouteRequest(..)
+, Leg(..)
+, Trip(..)
+, Route(..)
 , route
 ) where
 
+import Control.Applicative
+import Control.Monad
+import Data.Aeson
+import Data.Aeson.Types
+import qualified Data.ByteString.Lazy.Char8 as BS8
+import Data.Functor
+import qualified Data.HashMap.Strict as HMS
+import Data.Time.Calendar
+import Data.Time.LocalTime
+import qualified Data.Vector as V
 import Network.HTTP
 import Network.Stream
 import Network.Transportation.Germany.DVB
-import Data.Time.Calendar
-import Data.Time.LocalTime
 
 data RouteRequest = RouteRequest
   { routeReqOrigin :: Location
@@ -24,9 +37,49 @@ data RouteRequest = RouteRequest
   , routeReqCityDestination :: City
   , routeReqTime :: LocalTime
   , routeReqTimeType :: TimeType
-  }
+  } deriving (Show)
 
-route :: RouteRequest -> IO (Either ConnError String)
+type RouteResult = Either Error Route
+
+data Route = Route { routeTrips :: [Trip] } deriving (Show)
+
+instance FromJSON Route where
+  parseJSON (Object obj) = Route <$>
+                           obj .: "trips"
+  parseJSON _ = mzero
+
+data Trip = Trip
+  { tripDuration :: String
+  , tripLegs :: [Leg]
+  } deriving (Show)
+
+instance FromJSON Trip where
+  parseJSON (Object obj) = Trip <$>
+                           obj .: "duration" <*>
+                           obj .: "legs"
+  parseJSON _ = mzero
+
+data Leg = Leg
+  { legNumber :: String
+  , legDesc :: String
+  } deriving (Show)
+
+instance FromJSON Leg where
+  parseJSON (Object obj) =
+    let parseMode :: Value -> Parser Leg
+        parseMode (Object modeObj) = Leg <$>
+                                     modeObj .: "number" <*>
+                                     modeObj .: "desc"
+        parseMode _ = mzero
+    in case HMS.lookup "mode" obj of
+      Just modeVal -> parseMode modeVal
+      Nothing -> mzero
+  parseJSON _ = mzero
+
+data Error = HttpResetError | HttpClosedError | HttpParseError String |
+             HttpMiscError String | JsonParseError String deriving (Show)
+
+route :: RouteRequest -> IO RouteResult
 route req = do
   let (Location origin) = routeReqOrigin req
       (Location destination) = routeReqDestination req
@@ -62,8 +115,18 @@ route req = do
                 ("coordOutputFormatTail", "0")]
   result <- simpleHTTP (getRequest (routeUrl ++ "?" ++ urlEncodeVars params))
   case result of
-    Left connError -> return $ Left connError
-    Right response -> return $ Right $ rspBody response
+    Left connError -> return $ Left $ connErrToResultErr connError
+    Right response' ->
+      let body = BS8.pack $ rspBody response'
+      in case eitherDecode body of
+        Left err -> return $ Left $ JsonParseError err
+        Right route -> return $ Right route
 
 routeUrl :: String
 routeUrl = "http://efa.vvo-online.de:8080/dvb/XML_TRIP_REQUEST2"
+
+connErrToResultErr :: ConnError -> Error
+connErrToResultErr ErrorReset = HttpResetError
+connErrToResultErr ErrorClosed = HttpClosedError
+connErrToResultErr (ErrorParse msg) = HttpParseError msg
+connErrToResultErr (ErrorMisc msg) = HttpMiscError msg
