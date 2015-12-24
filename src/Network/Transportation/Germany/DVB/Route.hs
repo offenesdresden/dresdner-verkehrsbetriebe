@@ -30,6 +30,7 @@ import Network.HTTP
 import Network.Stream
 import Network.Transportation.Germany.DVB
 
+-- |All data sent to DVB to query routes.
 data RouteRequest = RouteRequest
   { routeReqOrigin :: Location
   , routeReqDestination :: Location
@@ -39,8 +40,10 @@ data RouteRequest = RouteRequest
   , routeReqTimeType :: TimeType
   } deriving (Show)
 
+-- |Either route data or an error.
 type RouteResult = Either Error Route
 
+-- |All route data returned from a routing request.
 data Route = Route { routeTrips :: [Trip] } deriving (Show)
 
 instance FromJSON Route where
@@ -48,6 +51,7 @@ instance FromJSON Route where
                            obj .: "trips"
   parseJSON _ = mzero
 
+-- |One of the possible trips to get from the origin to the destination.
 data Trip = Trip
   { tripDuration :: String
   , tripLegs :: [Leg]
@@ -59,6 +63,7 @@ instance FromJSON Trip where
                            obj .: "legs"
   parseJSON _ = mzero
 
+-- |One segment of a trip (for example: one vehicle).
 data Leg = Leg
   { legNumber :: String
   , legDesc :: String
@@ -76,9 +81,12 @@ instance FromJSON Leg where
       Nothing -> mzero
   parseJSON _ = mzero
 
+-- |All possible errors which could occur while fetching data, including HTTP
+-- errors and JSON parsing errors.
 data Error = HttpResetError | HttpClosedError | HttpParseError String |
              HttpMiscError String | JsonParseError String deriving (Show)
 
+-- |Given information about a desired route, query and return data from DVB.
 route :: RouteRequest -> IO RouteResult
 route req = do
   let (Location origin) = routeReqOrigin req
@@ -122,9 +130,12 @@ route req = do
         Left err -> return $ Left $ JsonParseError err
         Right route -> return $ Right route
 
+-- |The HTTP URL to query for DVB route data.
 routeUrl :: String
 routeUrl = "http://efa.vvo-online.de:8080/dvb/XML_TRIP_REQUEST2"
 
+-- |Take an HTTP connection error and convert it into an error which can be
+-- returned in a RouteResult.
 connErrToResultErr :: ConnError -> Error
 connErrToResultErr ErrorReset = HttpResetError
 connErrToResultErr ErrorClosed = HttpClosedError
