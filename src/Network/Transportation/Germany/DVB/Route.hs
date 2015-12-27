@@ -97,7 +97,7 @@ route req = do
       (TimeOfDay hour minute _) = localTimeOfDay $ routeReqTime req
       params = [("sessionID", "0"),
                 ("requestID", "0"),
-                ("language", "en"),
+                ("language", "de"),
                 ("execInst", "normal"),
                 ("command", ""),
                 ("ptOptionsActive", "-1"),

@@ -14,10 +14,16 @@ module Network.Transportation.Germany.DVB
 ) where
 
 -- |The name of a location in the city.
-newtype Location = Location String deriving (Show)
+newtype Location = Location String
+
+instance Show Location where
+  show (Location str) = str
 
 -- |The name of the city (probably Dresden).
-newtype City = City String deriving (Show)
+newtype City = City String
+
+instance Show City where
+  show (City str) = str
 
 -- |Whether the time should be interpreted as departure or arrival time.
 data TimeType = DepartureTime | ArrivalTime
