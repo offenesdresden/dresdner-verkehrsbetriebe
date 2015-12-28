@@ -83,7 +83,7 @@ optMain opts =
       result <- route request
       case result of
         Left err -> error ("The result is invalid: " ++ show err)
-        Right route' -> print route'
+        Right route' -> putStrLn $ prettyRoute route'
     Nothing -> error "There are problems with the request."
 
 -- |Generate a route request from program options.
@@ -99,3 +99,24 @@ programOptionsToRequest opts =
         routeReqTimeType = timeType
       }
     (_, _) -> Nothing
+
+-- |Print a route to be displayed to the user.
+prettyRoute :: Route -> String
+prettyRoute route' = concat $ map prettyTrip $ routeTrips route'
+  where
+    prettyTrip trip =
+      let l1 = "===== Strecke: =============================================="
+          l2 = " Dauer: " ++ tripDuration trip
+          rest = concat $ map prettyLeg $ tripLegs trip
+      in l1 ++ "\n" ++ l2 ++ "\n" ++ rest
+    prettyLeg leg =
+      let l1 = " * Teilstrecke (Linie: " ++ legNumber leg ++ "): " ++
+               legDesc leg
+          rest = concat $ map prettyStop $ legStops leg
+      in l1 ++ "\n" ++ rest
+    prettyStop stop =
+      let platform = if null $ stopPlatformName stop
+                     then "" else " (Gleis: " ++ stopPlatformName stop ++ ")"
+
+          l1 = "   ~ Haltestelle: " ++ stopName stop ++ platform ++ "\n"
+      in l1
