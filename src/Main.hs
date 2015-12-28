@@ -13,6 +13,7 @@ import Data.Time.Clock
 import Data.Time.Format
 import Data.Time.LocalTime
 import Network.Transportation.Germany.DVB
+import Network.Transportation.Germany.DVB.Route
 import Options.Applicative
 import System.Locale
 
@@ -76,4 +77,25 @@ main = do
 
 -- |Main program function after options parsing.
 optMain :: ProgramOptions -> IO ()
-optMain _ = return ()
+optMain opts =
+  case programOptionsToRequest opts of
+    Just request -> do
+      result <- route request
+      case result of
+        Left err -> error "The result is invalid."
+        Right route -> print route
+    Nothing -> error "There are problems with the request."
+
+-- |Generate a route request from program options.
+programOptionsToRequest :: ProgramOptions -> Maybe RouteRequest
+programOptionsToRequest opts =
+  case (poTime opts, poTimeType opts) of
+    (Just time, Just timeType) -> Just $ RouteRequest {
+        routeReqOrigin = poOrigin opts,
+        routeReqDestination = poDestination opts,
+        routeReqCityOrigin = poOriginCity opts,
+        routeReqCityDestination = poDestinationCity opts,
+        routeReqTime = time,
+        routeReqTimeType = timeType
+      }
+    (_, _) -> Nothing
