@@ -82,8 +82,8 @@ optMain opts =
     Just request -> do
       result <- route request
       case result of
-        Left err -> error "The result is invalid."
-        Right route -> print route
+        Left err -> error ("The result is invalid: " ++ show err)
+        Right route' -> print route'
     Nothing -> error "There are problems with the request."
 
 -- |Generate a route request from program options.

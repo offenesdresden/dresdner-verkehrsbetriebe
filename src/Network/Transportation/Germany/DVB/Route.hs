@@ -10,9 +10,11 @@
 
 module Network.Transportation.Germany.DVB.Route
 ( RouteRequest(..)
-, Leg(..)
-, Trip(..)
 , Route(..)
+, Trip(..)
+, Leg(..)
+, Stop(..)
+, Error(..)
 , route
 ) where
 
@@ -21,11 +23,10 @@ import Control.Monad
 import Data.Aeson
 import Data.Aeson.Types
 import qualified Data.ByteString.Lazy.Char8 as BS8
-import Data.Functor
+import qualified Data.Foldable as F
 import qualified Data.HashMap.Strict as HMS
 import Data.Time.Calendar
 import Data.Time.LocalTime
-import qualified Data.Vector as V
 import Network.HTTP
 import Network.Stream
 import Network.Transportation.Germany.DVB
@@ -67,18 +68,30 @@ instance FromJSON Trip where
 data Leg = Leg
   { legNumber :: String
   , legDesc :: String
+  , legStops :: [Stop]
   } deriving (Show)
 
 instance FromJSON Leg where
   parseJSON (Object obj) =
-    let parseMode :: Value -> Parser Leg
+    let parseMode :: Value -> Parser ([Stop] -> Leg)
         parseMode (Object modeObj) = Leg <$>
                                      modeObj .: "number" <*>
                                      modeObj .: "desc"
         parseMode _ = mzero
-    in case HMS.lookup "mode" obj of
-      Just modeVal -> parseMode modeVal
-      Nothing -> mzero
+    in maybe mzero parseMode (HMS.lookup "mode" obj) <*>
+       (F.concat <$> (obj .:? "stopSeq"))
+  parseJSON _ = mzero
+
+-- |A stop that the vehicle makes in a leg.
+data Stop = Stop
+  { stopName :: String
+  , stopPlatformName :: String
+  } deriving (Show)
+
+instance FromJSON Stop where
+  parseJSON (Object obj) = Stop <$>
+                           obj .: "nameWO" <*>
+                           obj .: "platformName"
   parseJSON _ = mzero
 
 -- |All possible errors which could occur while fetching data, including HTTP
@@ -128,7 +141,7 @@ route req = do
       let body = BS8.pack $ rspBody response'
       in case eitherDecode body of
         Left err -> return $ Left $ JsonParseError err
-        Right route -> return $ Right route
+        Right route' -> return $ Right route'
 
 -- |The HTTP URL to query for DVB route data.
 routeUrl :: String
