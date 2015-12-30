@@ -6,8 +6,6 @@
 -- Stability: experimental
 -- Portability: ghc
 
-{-# LANGUAGE OverloadedStrings #-}
-
 module Network.Transportation.Germany.DVB.Route
 ( RouteRequest(..)
 , Route(..)
@@ -18,18 +16,15 @@ module Network.Transportation.Germany.DVB.Route
 , route
 ) where
 
-import Control.Applicative
-import Control.Monad
 import Data.Aeson
-import Data.Aeson.Types
 import qualified Data.ByteString.Lazy.Char8 as BS8
 import qualified Data.Foldable as F
-import qualified Data.HashMap.Strict as HMS
 import Data.Time.Calendar
 import Data.Time.LocalTime
 import Network.HTTP
 import Network.Stream
 import Network.Transportation.Germany.DVB
+import qualified Network.Transportation.Germany.DVB.Route.JSON as JSON
 
 -- |All data sent to DVB to query routes.
 data RouteRequest = RouteRequest
@@ -47,22 +42,11 @@ type RouteResult = Either Error Route
 -- |All route data returned from a routing request.
 data Route = Route { routeTrips :: [Trip] } deriving (Show)
 
-instance FromJSON Route where
-  parseJSON (Object obj) = Route <$>
-                           obj .: "trips"
-  parseJSON _ = mzero
-
 -- |One of the possible trips to get from the origin to the destination.
 data Trip = Trip
   { tripDuration :: String
   , tripLegs :: [Leg]
   } deriving (Show)
-
-instance FromJSON Trip where
-  parseJSON (Object obj) = Trip <$>
-                           obj .: "duration" <*>
-                           obj .: "legs"
-  parseJSON _ = mzero
 
 -- |One segment of a trip (for example: one vehicle).
 data Leg = Leg
@@ -71,28 +55,13 @@ data Leg = Leg
   , legStops :: [Stop]
   } deriving (Show)
 
-instance FromJSON Leg where
-  parseJSON (Object obj) =
-    let parseMode :: Value -> Parser ([Stop] -> Leg)
-        parseMode (Object modeObj) = Leg <$>
-                                     modeObj .: "number" <*>
-                                     modeObj .: "desc"
-        parseMode _ = mzero
-    in maybe mzero parseMode (HMS.lookup "mode" obj) <*>
-       (F.concat <$> (obj .:? "stopSeq"))
-  parseJSON _ = mzero
-
 -- |A stop that the vehicle makes in a leg.
 data Stop = Stop
   { stopName :: String
   , stopPlatformName :: String
+  , stopDepartureTime :: String
+  , stopDelayMins :: String
   } deriving (Show)
-
-instance FromJSON Stop where
-  parseJSON (Object obj) = Stop <$>
-                           obj .: "nameWO" <*>
-                           obj .: "platformName"
-  parseJSON _ = mzero
 
 -- |All possible errors which could occur while fetching data, including HTTP
 -- errors and JSON parsing errors.
@@ -141,7 +110,7 @@ route req = do
       let body = BS8.pack $ rspBody response'
       in case eitherDecode body of
         Left err -> return $ Left $ JsonParseError err
-        Right route' -> return $ Right route'
+        Right route' -> return $ Right (fromJsonRoute route')
 
 -- |The HTTP URL to query for DVB route data.
 routeUrl :: String
@@ -154,3 +123,32 @@ connErrToResultErr ErrorReset = HttpResetError
 connErrToResultErr ErrorClosed = HttpClosedError
 connErrToResultErr (ErrorParse msg) = HttpParseError msg
 connErrToResultErr (ErrorMisc msg) = HttpMiscError msg
+
+fromJsonRoute :: JSON.Route -> Route
+fromJsonRoute route' =
+  Route { routeTrips = map fromJsonTrip $ JSON.routeTrips route' }
+
+fromJsonTrip :: JSON.Trip -> Trip
+fromJsonTrip trip' =
+  Trip {
+      tripDuration = JSON.tripDuration trip',
+      tripLegs = map fromJsonLeg $ JSON.tripLegs trip'
+    }
+
+fromJsonLeg :: JSON.Leg -> Leg
+fromJsonLeg leg' =
+  Leg {
+      legNumber = JSON.legModeNumber $ JSON.legMode leg',
+      legDesc = JSON.legModeDesc $ JSON.legMode leg',
+      legStops = map fromJsonStop $ JSON.legStops leg'
+    }
+
+fromJsonStop :: JSON.Stop -> Stop
+fromJsonStop stop' =
+  Stop {
+      stopName = JSON.stopName stop',
+      stopPlatformName = JSON.stopPlatformName stop',
+      stopDepartureTime = F.concat
+                          (JSON.stopRefDepartureTime $ JSON.stopRef stop'),
+      stopDelayMins = F.concat $ JSON.stopRefDelayMins (JSON.stopRef stop')
+    }

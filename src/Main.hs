@@ -118,5 +118,7 @@ prettyRoute route' = concat $ map prettyTrip $ routeTrips route'
       let platform = if null $ stopPlatformName stop
                      then "" else " (Gleis: " ++ stopPlatformName stop ++ ")"
 
-          l1 = "   ~ Haltestelle: " ++ stopName stop ++ platform ++ "\n"
+          l1 = "   ~ Haltestelle: " ++ stopName stop ++ platform ++ " um " ++
+               stopDepartureTime stop ++ " mit " ++ stopDelayMins stop ++
+               " Verspätung\n"
       in l1
