@@ -8,7 +8,14 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 
-module Network.Transportation.Germany.DVB.Route.JSON where
+module Network.Transportation.Germany.DVB.Route.JSON
+( Route(..)
+, Trip(..)
+, Leg(..)
+, LegMode(..)
+, Stop(..)
+, StopRef(..)
+) where
 
 import Control.Applicative
 import Control.Monad

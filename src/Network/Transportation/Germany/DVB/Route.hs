@@ -12,19 +12,22 @@ module Network.Transportation.Germany.DVB.Route
 , Trip(..)
 , Leg(..)
 , Stop(..)
+, StopDeparture(..)
 , Error(..)
 , route
 ) where
 
 import Data.Aeson
 import qualified Data.ByteString.Lazy.Char8 as BS8
-import qualified Data.Foldable as F
+import Data.Functor
 import Data.Time.Calendar
+import Data.Time.Format
 import Data.Time.LocalTime
 import Network.HTTP
 import Network.Stream
 import Network.Transportation.Germany.DVB
 import qualified Network.Transportation.Germany.DVB.Route.JSON as JSON
+import System.Locale
 
 -- |All data sent to DVB to query routes.
 data RouteRequest = RouteRequest
@@ -59,8 +62,12 @@ data Leg = Leg
 data Stop = Stop
   { stopName :: String
   , stopPlatformName :: String
-  , stopDepartureTime :: String
-  , stopDelayMins :: String
+  , stopDeparture :: Maybe StopDeparture
+  } deriving (Show)
+
+data StopDeparture = StopDeparture
+  { stopDepartureTime :: LocalTime
+  , stopDepartureDelayMins :: Integer
   } deriving (Show)
 
 -- |All possible errors which could occur while fetching data, including HTTP
@@ -124,10 +131,12 @@ connErrToResultErr ErrorClosed = HttpClosedError
 connErrToResultErr (ErrorParse msg) = HttpParseError msg
 connErrToResultErr (ErrorMisc msg) = HttpMiscError msg
 
+-- |Convert intermediate parsed JSON type to exported route type.
 fromJsonRoute :: JSON.Route -> Route
 fromJsonRoute route' =
   Route { routeTrips = map fromJsonTrip $ JSON.routeTrips route' }
 
+-- |Convert intermediate parsed JSON type to exported trip type.
 fromJsonTrip :: JSON.Trip -> Trip
 fromJsonTrip trip' =
   Trip {
@@ -135,6 +144,7 @@ fromJsonTrip trip' =
       tripLegs = map fromJsonLeg $ JSON.tripLegs trip'
     }
 
+-- |Convert intermediate parsed JSON type to exported leg type.
 fromJsonLeg :: JSON.Leg -> Leg
 fromJsonLeg leg' =
   Leg {
@@ -143,12 +153,23 @@ fromJsonLeg leg' =
       legStops = map fromJsonStop $ JSON.legStops leg'
     }
 
+-- |Convert intermediate parsed JSON type to exported stop type.
 fromJsonStop :: JSON.Stop -> Stop
 fromJsonStop stop' =
-  Stop {
+  let depTime = JSON.stopRefDepartureTime $ JSON.stopRef stop'
+      depDelayMins = JSON.stopRefDelayMins $ JSON.stopRef stop'
+      departure = case (depTime, depDelayMins) of
+        (Just depTime', Just depDelayMins') ->
+          let parsedDepTime = parseTime defaultTimeLocale "%Y%m%d %H:%M"
+                                        depTime'
+              depTimeToStopDeparture depTime'' = StopDeparture {
+                  stopDepartureTime = depTime'',
+                  stopDepartureDelayMins = read depDelayMins'
+                }
+          in depTimeToStopDeparture <$> parsedDepTime
+        _ -> Nothing
+  in Stop {
       stopName = JSON.stopName stop',
       stopPlatformName = JSON.stopPlatformName stop',
-      stopDepartureTime = F.concat
-                          (JSON.stopRefDepartureTime $ JSON.stopRef stop'),
-      stopDelayMins = F.concat $ JSON.stopRefDelayMins (JSON.stopRef stop')
+      stopDeparture = departure
     }
