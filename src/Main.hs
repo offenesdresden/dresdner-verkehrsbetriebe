@@ -57,7 +57,7 @@ programOptionsParser currentTime =
     -- |Given the current time and a time string, return a time if possible.
     strToTime :: LocalTime -> String -> Maybe LocalTime
     strToTime now "now" = Just now
-    strToTime _ strTime = parseTime defaultTimeLocale "%d/%m/%y" strTime
+    strToTime _ strTime = parseTime defaultTimeLocale "%d/%m/%Y %H:%M" strTime
     -- |Given a time type ("dep" or "arr"), return a TimeType if possible.
     strToTimeType :: String -> Maybe TimeType
     strToTimeType "dep" = Just DepartureTime
