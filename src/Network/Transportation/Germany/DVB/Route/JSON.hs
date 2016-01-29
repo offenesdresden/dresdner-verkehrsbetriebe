@@ -83,12 +83,16 @@ instance FromJSON Stop where
 
 -- |Parsing JSON type for the ref object in stops in trips.
 data StopRef = StopRef
-  { stopRefDepartureTime :: Maybe String
-  , stopRefDelayMins :: Maybe String
+  { stopRefArrivalTime :: Maybe String
+  , stopRefArrivalDelayMins :: Maybe String
+  , stopRefDepartureTime :: Maybe String
+  , stopRefDepartureDelayMins :: Maybe String
   }
 
 instance FromJSON StopRef where
   parseJSON (Object obj) = StopRef <$>
+                           obj .:? "arrDateTime" <*>
+                           obj .:? "arrDelay" <*>
                            obj .:? "depDateTime" <*>
                            obj .:? "depDelay"
   parseJSON _ = mzero

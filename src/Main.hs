@@ -118,6 +118,15 @@ prettyRoute route' = concat $ map prettyTrip $ routeTrips route'
     prettyStop stop =
       let platform = if null $ stopPlatformName stop
                      then "" else " (Gleis: " ++ stopPlatformName stop ++ ")"
+          arrival = case stopArrival stop of
+            Just arr ->
+              " (Ankunft am " ++
+              formatTime defaultTimeLocale "%d.%m.%Y" (stopArrivalTime arr) ++
+              " um " ++
+              formatTime defaultTimeLocale "%H:%M" (stopArrivalTime arr) ++
+              " mit [" ++ show (stopArrivalDelayMins arr) ++
+              " Minuten] Verspätung)"
+            Nothing -> ""
           departure = case stopDeparture stop of
             Just dep ->
               " (Abfahrt am " ++
@@ -127,6 +136,6 @@ prettyRoute route' = concat $ map prettyTrip $ routeTrips route'
               " mit [" ++ show (stopDepartureDelayMins dep) ++
               " Minuten] Verspätung)"
             Nothing -> ""
-          l1 = "   ~ Haltestelle: " ++ stopName stop ++ platform ++ departure ++
-               "\n"
+          l1 = "   ~ Haltestelle: " ++ stopName stop ++ platform ++ arrival ++
+               departure ++ "\n"
       in l1

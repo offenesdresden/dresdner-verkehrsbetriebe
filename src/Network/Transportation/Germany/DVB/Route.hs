@@ -8,11 +8,12 @@
 
 module Network.Transportation.Germany.DVB.Route
 ( RouteRequest(..)
-, RouteResult(..)
+, RouteResult
 , Route(..)
 , Trip(..)
 , Leg(..)
 , Stop(..)
+, StopArrival(..)
 , StopDeparture(..)
 , Error(..)
 , route
@@ -63,9 +64,17 @@ data Leg = Leg
 data Stop = Stop
   { stopName :: String
   , stopPlatformName :: String
+  , stopArrival :: Maybe StopArrival
   , stopDeparture :: Maybe StopDeparture
   } deriving (Show)
 
+-- |Arrival at a stop.
+data StopArrival = StopArrival
+  { stopArrivalTime :: LocalTime
+  , stopArrivalDelayMins :: Integer
+  } deriving (Show)
+
+-- |Departure from a stop.
 data StopDeparture = StopDeparture
   { stopDepartureTime :: LocalTime
   , stopDepartureDelayMins :: Integer
@@ -157,8 +166,20 @@ fromJsonLeg leg' =
 -- |Convert intermediate parsed JSON type to exported stop type.
 fromJsonStop :: JSON.Stop -> Stop
 fromJsonStop stop' =
-  let depTime = JSON.stopRefDepartureTime $ JSON.stopRef stop'
-      depDelayMins = JSON.stopRefDelayMins $ JSON.stopRef stop'
+  let arrTime = JSON.stopRefArrivalTime $ JSON.stopRef stop'
+      arrDelayMins = JSON.stopRefArrivalDelayMins $ JSON.stopRef stop'
+      arrival = case (arrTime, arrDelayMins) of
+        (Just arrTime', Just arrDelayMins') ->
+          let parsedArrTime = parseTime defaultTimeLocale "%Y%m%d %H:%M"
+                                        arrTime'
+              arrTimeToStopDeparture arrTime'' = StopArrival {
+                  stopArrivalTime = arrTime'',
+                  stopArrivalDelayMins = read arrDelayMins'
+                }
+          in arrTimeToStopDeparture <$> parsedArrTime
+        _ -> Nothing
+      depTime = JSON.stopRefDepartureTime $ JSON.stopRef stop'
+      depDelayMins = JSON.stopRefDepartureDelayMins $ JSON.stopRef stop'
       departure = case (depTime, depDelayMins) of
         (Just depTime', Just depDelayMins') ->
           let parsedDepTime = parseTime defaultTimeLocale "%Y%m%d %H:%M"
@@ -172,5 +193,6 @@ fromJsonStop stop' =
   in Stop {
       stopName = JSON.stopName stop',
       stopPlatformName = JSON.stopPlatformName stop',
+      stopArrival = arrival,
       stopDeparture = departure
     }
