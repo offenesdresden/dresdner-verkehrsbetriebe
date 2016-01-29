@@ -174,7 +174,7 @@ fromJsonStop stop' =
                                         arrTime'
               arrTimeToStopDeparture arrTime'' = StopArrival {
                   stopArrivalTime = arrTime'',
-                  stopArrivalDelayMins = read arrDelayMins'
+                  stopArrivalDelayMins = properDelay $ read arrDelayMins'
                 }
           in arrTimeToStopDeparture <$> parsedArrTime
         _ -> Nothing
@@ -186,7 +186,7 @@ fromJsonStop stop' =
                                         depTime'
               depTimeToStopDeparture depTime'' = StopDeparture {
                   stopDepartureTime = depTime'',
-                  stopDepartureDelayMins = read depDelayMins'
+                  stopDepartureDelayMins = properDelay $ read depDelayMins'
                 }
           in depTimeToStopDeparture <$> parsedDepTime
         _ -> Nothing
@@ -196,3 +196,9 @@ fromJsonStop stop' =
       stopArrival = arrival,
       stopDeparture = departure
     }
+
+-- |Convert the arrival/departure delay that is received from the server to a
+-- more meaningful value.
+properDelay :: Integer -> Integer
+properDelay (-1) = 0
+properDelay x = x
