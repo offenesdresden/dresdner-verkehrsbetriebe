@@ -8,6 +8,7 @@
 
 module Network.Transportation.Germany.DVB.Route
 ( RouteRequest(..)
+, RouteResult(..)
 , Route(..)
 , Trip(..)
 , Leg(..)

@@ -72,7 +72,8 @@ programOptionsInfo currentTime =
 -- |Main program function.
 main :: IO ()
 main = do
-  currentTime <- utcToLocalTime utc <$> getCurrentTime
+  timezone <- getCurrentTimeZone
+  currentTime <- utcToLocalTime timezone <$> getCurrentTime
   execParser (programOptionsInfo currentTime) >>= optMain
 
 -- |Main program function after options parsing.
