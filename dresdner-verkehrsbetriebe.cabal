@@ -21,7 +21,7 @@ library
     , HTTP >= 4000.2 && < 4000.3
     , old-locale >= 1.0.0 && < 1.0.1
     , time >= 1.5 && < 1.7
-    , aeson >= 0.10.0 && < 0.11.0
+    , aeson >= 0.10.0 && < 1.0.0
     , vector >= 0.11.0 && < 0.12.0
     , bytestring >= 0.10.0 && < 0.11.0
     , unordered-containers >= 0.2.0 && < 0.3.0
@@ -35,7 +35,7 @@ executable dresdner-verkehrsbetriebe
     , HTTP >= 4000.2 && < 4000.3
     , old-locale >= 1.0.0 && < 1.0.1
     , time >= 1.5 && < 1.7
-    , aeson >= 0.10.0 && < 0.11.0
+    , aeson >= 0.10.0 && < 1.0.0
     , vector >= 0.11.0 && < 0.12.0
     , bytestring >= 0.10.0 && < 0.11.0
     , unordered-containers >= 0.2.0 && < 0.3.0
