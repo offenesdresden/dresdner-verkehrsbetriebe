@@ -29,7 +29,7 @@ import Network.HTTP
 import Network.Stream
 import Network.Transportation.Germany.DVB
 import qualified Network.Transportation.Germany.DVB.Route.JSON as JSON
-import System.Locale
+import System.Locale hiding (defaultTimeLocale)
 
 -- |All data sent to DVB to query routes.
 data RouteRequest = RouteRequest
