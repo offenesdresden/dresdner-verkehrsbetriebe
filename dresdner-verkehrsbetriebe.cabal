@@ -14,6 +14,7 @@ library
   exposed-modules:
       Network.Transportation.Germany.DVB
     , Network.Transportation.Germany.DVB.Route
+    , Network.Transportation.Germany.DVB.Monitor
   other-modules:
       Network.Transportation.Germany.DVB.Route.JSON
   build-depends:
