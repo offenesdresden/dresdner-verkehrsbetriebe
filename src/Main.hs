@@ -8,14 +8,12 @@
 
 module Main where
 
-import Control.Applicative
 import Data.Time.Clock
 import Data.Time.Format
 import Data.Time.LocalTime
 import Network.Transportation.Germany.DVB
 import Network.Transportation.Germany.DVB.Route
 import Options.Applicative
-import System.Locale
 
 -- |Data structure containing all program options.
 data ProgramOptions = ProgramOptions
