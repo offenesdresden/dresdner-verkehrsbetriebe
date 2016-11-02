@@ -17,6 +17,7 @@ library
     , Network.Transportation.Germany.DVB.Monitor
   other-modules:
       Network.Transportation.Germany.DVB.Route.JSON
+    , Network.Transportation.Germany.DVB.Monitor.JSON
   build-depends:
       base >= 4 && < 5
     , HTTP >= 4000.2 && < 4000.4
