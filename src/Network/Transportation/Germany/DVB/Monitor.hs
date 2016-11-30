@@ -8,6 +8,9 @@
 
 module Network.Transportation.Germany.DVB.Monitor
 ( MonitorRequest(..)
+, MonitorResult(..)
+, TransitConnection(..)
+, Error(..)
 , monitor
 ) where
 

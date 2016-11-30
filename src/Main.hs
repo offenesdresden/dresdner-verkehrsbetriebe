@@ -13,16 +13,19 @@ import Data.Time.Format
 import Data.Time.LocalTime
 import Network.Transportation.Germany.DVB
 import Network.Transportation.Germany.DVB.Route
+import Network.Transportation.Germany.DVB.Monitor
 import Options.Applicative
 
 -- |Data structure containing all program options.
 data ProgramOptions = ProgramOptions
   { poOrigin :: Location
-  , poDestination :: Location
+  , poDestination :: Maybe Location
   , poOriginCity :: City
   , poDestinationCity :: City
   , poTime :: Maybe LocalTime
   , poTimeType :: Maybe TimeType
+  , poOffset :: Integer
+  , poLimit :: Integer
   }
 
 -- |Program options parser.
@@ -32,9 +35,11 @@ programOptionsParser currentTime =
     (Location <$>
      strOption (long "origin" <>
                 help "Location in the city from which to travel.")) <*>
-    (Location <$>
+    (strToMaybeLocation <$>
      strOption (long "destination" <>
-                help "Location in the city to which to travel.")) <*>
+                value "" <>
+                help ("Location in the city to which to travel. Omit to " ++
+                      "monitor the origin stop."))) <*>
     (City <$>
      strOption (long "origin-city" <>
                 value (show defaultCity) <>
@@ -50,8 +55,21 @@ programOptionsParser currentTime =
     (strToTimeType <$>
      strOption (long "time-type" <>
                 value (show DepartureTime) <>
-                help "Departure (dep) or arrival (arr) time."))
+                help "Departure (dep) or arrival (arr) time.")) <*>
+    (read <$>
+     strOption (long "offset" <>
+                value "0" <>
+                help "Offset of entries when monitoring the origin stop.")) <*>
+    (read <$>
+     strOption (long "limit" <>
+                value "10" <>
+                help "Limit of entries when monitoring the origin stop."))
   where
+    -- |Given a string that either contains text or is blank, return either a
+    -- location or nothing respectively.
+    strToMaybeLocation :: String -> Maybe Location
+    strToMaybeLocation "" = Nothing
+    strToMaybeLocation str = Just $ Location str
     -- |Given the current time and a time string, return a time if possible.
     strToTime :: LocalTime -> String -> Maybe LocalTime
     strToTime now "now" = Just now
@@ -78,25 +96,41 @@ main = do
 optMain :: ProgramOptions -> IO ()
 optMain opts =
   case programOptionsToRequest opts of
-    Just request -> do
+    Just (Left request) -> do
       result <- route request
       case result of
         Left err -> error ("The result is invalid: " ++ show err)
         Right route' -> putStrLn $ prettyRoute route'
+    Just (Right request) -> do
+      result <- monitor request
+      case result of
+        Left err -> error ("The result is invalid: " ++ show err)
+        Right connections -> putStrLn $ prettyMonitor connections
     Nothing -> error "There are problems with the request."
 
--- |Generate a route request from program options.
-programOptionsToRequest :: ProgramOptions -> Maybe RouteRequest
+-- |Generate a route or monitor request from program options.
+programOptionsToRequest :: ProgramOptions ->
+                           Maybe (Either RouteRequest MonitorRequest)
 programOptionsToRequest opts =
   case (poTime opts, poTimeType opts) of
-    (Just time, Just timeType) -> Just $ RouteRequest {
-        routeReqOrigin = poOrigin opts,
-        routeReqDestination = poDestination opts,
-        routeReqCityOrigin = poOriginCity opts,
-        routeReqCityDestination = poDestinationCity opts,
-        routeReqTime = time,
-        routeReqTimeType = timeType
-      }
+    (Just time, Just timeType) ->
+      case poDestination opts of
+        Just destination ->
+          return $ Left $ RouteRequest {
+            routeReqOrigin = poOrigin opts,
+            routeReqDestination = destination,
+            routeReqCityOrigin = poOriginCity opts,
+            routeReqCityDestination = poDestinationCity opts,
+            routeReqTime = time,
+            routeReqTimeType = timeType
+          }
+        Nothing ->
+          return $ Right $ MonitorRequest {
+            monitorReqCity = poOriginCity opts,
+            monitorReqStop = poOrigin opts,
+            monitorReqOffset = poOffset opts,
+            monitorReqLimit = poLimit opts
+          }
     (_, _) -> Nothing
 
 -- |Print a route to be displayed to the user.
@@ -137,3 +171,15 @@ prettyRoute route' = concat $ map prettyTrip $ routeTrips route'
           l1 = "   ~ Haltestelle: " ++ stopName stop ++ platform ++ arrival ++
                departure ++ "\n"
       in l1
+
+-- |Print transit connections to be displayed to the user.
+prettyMonitor :: [TransitConnection] -> String
+prettyMonitor connections = concat $ map prettyConnection connections
+  where
+    prettyConnection connection =
+      let l1 = "===== Verbindung: ==========================================="
+          l2 = " " ++ transConnDesc connection ++
+               " (Linie: " ++ transConnNumber connection ++ ")"
+          l3 = " Kommt in: " ++ show (transConnArrivalMinutes connection) ++
+               " Minuten"
+      in l1 ++ "\n" ++ l2 ++ "\n" ++ l3 ++ "\n"
