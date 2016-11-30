@@ -1,5 +1,5 @@
 name: dresdner-verkehrsbetriebe
-version: 0.1.1
+version: 1.0.0
 synopsis: Library and program for querying DVB (Dresdner Verkehrsbetriebe AG)
 license: MIT
 license-file: LICENSE
